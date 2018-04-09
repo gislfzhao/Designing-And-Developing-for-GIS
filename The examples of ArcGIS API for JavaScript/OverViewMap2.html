@@ -1,0 +1,67 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>我的第二个地图应用</title>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css" rel="stylesheet" type="text/css"/>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/dijit/themes/tundra/tundra.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript" src="http://localhost/arcgis_js_api/library/3.23/3.23/init.js" ></script>
+    <style type="text/css">
+        html,body{
+            width:100%;
+            height:100%;
+            margin:0px;
+            padding:0px;
+        }
+        .MapClass
+        {
+            width:100%;
+            height:100%;
+            border:0px solid #000;
+            margin:auto;
+            position:relative;
+        }
+        #OverViewDiv{
+            width:20%;
+            height:20%;
+            border:1px solid #000;
+            margin:0px;
+            padding:0px;
+            position:absolute;
+            bottom:6%;
+            right:0px;
+            z-index:50;
+        }
+    </style>
+    <script type="text/javascript">
+        var MyMap;
+        var MyTiledMapServiceLayer;
+        dojo.require("esri.map");
+        dojo.require("esri.dijit.OverviewMap");
+        dojo.addOnLoad(function () {
+            MyMap = new esri.Map("MyMapDiv");
+            MyTiledMapServiceLayer = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/arcgis/rest/services/NGS_Topo_US_2D/MapServer");
+            MyMap.addLayer(MyTiledMapServiceLayer)
+        })
+        dojo.addOnLoad(function OverviewMap() {
+            var over = {
+                map: MyMap,
+                attachTo: "bottom-right",
+                visible:true,
+                color: "#D84E13",
+                expandFactor: 2,
+                baseLayer: MyTiledMapServiceLayer,
+            };
+            var MapViewer = new esri.dijit.OverviewMap(over, dojo.byId("OverViewDiv"));
+            MapViewer.startup();
+        })
+        
+    </script>
+	<meta charset="utf-8" />
+</head>
+<body class="tundra">
+    <div id="MyMapDiv" class="MapClass">
+        <!--<div id="OverViewDiv" class="OverViewClass"></div>-->
+    </div>
+</body>
+</html>

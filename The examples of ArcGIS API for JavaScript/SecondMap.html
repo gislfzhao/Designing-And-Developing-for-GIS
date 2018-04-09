@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>我的第二个地图应用</title>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css" rel="stylesheet" type="text/css"/>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/dijit/themes/tundra/tundra.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript" src="http://localhost/arcgis_js_api/library/3.23/3.23/init.js" ></script>
+    <style type="text/css">
+        html,body{
+            width:100%;
+            height:100%;
+            margin:0px;
+            padding:0px;
+        }
+        .MapClass
+        {
+            width:100%;
+            height:100%;
+            border:0px;
+            margin:0px;
+            padding:0px;
+        }
+    </style>
+    <script type="text/javascript">
+        dojo.require("esri.map");
+        dojo.addOnLoad(function () {
+            var MyMap = new esri.Map("MyMapDiv");
+            var MyTiledMapServiceLayer = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/arcgis/rest/services/NGS_Topo_US_2D/MapServer");
+            MyMap.addLayer(MyTiledMapServiceLayer)
+        })
+    </script>
+	<meta charset="utf-8" />
+</head>
+<body class="tundra">
+    <div id="MyMapDiv" class="MapClass"></div>
+</body>
+</html>

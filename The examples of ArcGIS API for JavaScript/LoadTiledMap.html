@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>缓存2D地图服务加载</title>
+    <!--first-->
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css" rel="stylesheet" type="text/css" />
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/dijit/themes/tundra/tundra.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="http://localhost/arcgis_js_api/library/3.23/3.23/init.js"></script>
+    <style type="text/css">
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+            border: 0px;
+        }
+        /*.MapClass
+        {
+            width:100%;
+            height:100%;
+            border:0px;
+            margin:0px;
+            padding:0px;
+        }*/
+        #borderContainer {
+            height: 100%;
+            width: 100%;
+            
+        }
+    </style>
+    <script type="text/javascript">
+
+        //Second
+        var djConfig = { parseOnLoad: true };
+
+        function MapResize() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function () {
+                map.resize();
+                map.reposition();
+            }, 500);
+        }
+        function init() {
+            //创建最外层的 BorderContainer
+            var borderContainer = this.borderContainer = new dijit.layout.BorderContainer({
+                design: "headline",
+                style: "width:100%;height:100%;"
+            }, "borderContainer");
+
+            //创建页面的 header
+            var headerContent = this.headerContent = new dijit.layout.ContentPane({
+                style: "height:40px;text-align:center;line-height:40px;",
+                region: "top"
+            }, dojo.create("div", { id: "mapheader" }));
+            headerContent.setContent("缓存2D地图");
+
+            //创建地图的容器
+            var centContent = new dijit.layout.ContentPane({
+                region: "center"
+            }, dojo.create("div", { id: "mymap" }));
+
+            //创建底端的内容
+            var bottomContent = new dijit.layout.ContentPane({
+                region: "bottom",
+                style: "height:40px;text-align:center;line-height:40px;"
+            }, dojo.create("div", { id: "mapbtm" }));
+            bottomContent.setContent("测试");
+
+            //给Border布局对象中添加子类对象
+            borderContainer.addChild(headerContent);
+            borderContainer.addChild(centContent);
+            borderContainer.addChild(bottomContent);
+
+            //因为没有用到声明式的方式创建控件，所以一定要有这句话
+            borderContainer.startup();
+
+            var mapoption = { sliderStyle: "large" };
+            mapoption.center = esri.geometry.Point(116, 39);//这个点处于地图的中间
+            //mapoption.center = esri.geometry.Point(0, 0);//这个点处于地图的中间,Point
+            //                                             //之后的两个参数分别代表经纬度
+
+            map = new esri.Map("mymap", mapoption);
+            var layer = new esri.layers.ArcGISTiledMapServiceLayer("https://localhost:6443/arcgis/rest/services/MyChinaTiledMapService/MapServer");
+
+            map.addLayer(layer);
+            dojo.connect(map, 'onLoad', function (theMap) {
+                dojo.connect(map, 'resize', MapResize);
+            })
+        }
+
+        //Thrid
+        require(["esri/map","dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/ready"],
+            function (Map,BorderContainer, ContentPane, ready) {
+                ready(init());
+            });
+
+    </script>
+    <meta charset="utf-8" />
+</head>
+<body class="tundra">
+    <div id="borderContainer"></div>
+</body>
+</html>

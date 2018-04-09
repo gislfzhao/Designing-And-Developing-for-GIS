@@ -1,0 +1,75 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>鹰眼图</title>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css" rel="stylesheet" type="text/css"/>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/dijit/themes/tundra/tundra.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript" src="http://localhost/arcgis_js_api/library/3.23/3.23/init.js" ></script>
+    <style type="text/css">
+        html,body{
+            width:100%;
+            height:100%;
+            margin:0px;
+            padding:0px;
+        }
+        .MapClass
+        {
+            width:100%;
+            height:100%;
+            border:1px solid #000;
+            margin:auto;
+        }
+        #map
+        {
+            width:20%;
+            height:20%;
+            margin:0px;
+            padding:0px;
+            border:2px;
+        }
+       
+    </style>
+    <script type="text/javascript">
+        var map;
+        require([
+        "esri/map", "esri/dijit/OverviewMap",
+        "dojo/parser",
+        "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!"
+        ], function (
+        Map, OverviewMap,
+        parser
+      ) {
+            parser.parse();
+
+            map = new Map("map", {
+                basemap: "topo",
+                center: [-122.445, 37.752],
+                zoom: 14
+            });
+
+            var overviewMapDijit = new OverviewMap({
+                map: map,
+                visible: true,
+                attachTo:"bottom-right"
+            });
+            overviewMapDijit.startup();
+        });
+        
+        
+    </script>
+	<meta charset="utf-8" />
+</head>
+<body class="tundra">
+    <!--<div id="OverViewDiv"></div>-->
+    <div data-dojo-type="dijit/layout/BorderContainer"
+         data-dojo-props="design:'headline', gutters:false"
+         style="width: 100%; height: 100%; margin:0;">
+
+        <div id="map"
+             data-dojo-type="dijit/layout/ContentPane"
+             data-dojo-props="region:'center'">
+        </div>
+    </div>
+</body>
+</html>
