@@ -1,0 +1,290 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>加载各主要类型的地图</title>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css"
+        rel="stylesheet" type="text/css" />
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/dijit/themes/tundra/tundra.css"
+        rel="stylesheet" type="text/css" />
+
+    <style type="text/css">
+        html, body, #my_map {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+            border: 0px;
+        }
+
+        #map_layers {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 73px;
+            height: 512px;
+            z-index: 10;
+        }
+
+        .map_layer {
+            position: relative;
+            margin-bottom: 1px;
+            margin-top: 1px;
+            margin-left: 2px;
+            margin-right: 2px;
+            width: 65px;
+            height: 60px;
+            border: 1px solid black;
+            border-radius: 8px;
+            background-repeat: no-repeat;
+            background-size: 100% 100%;
+            opacity:0.8;
+        }
+
+            .map_layer:hover {
+                margin-left: 0px;
+                margin-right: 0px;
+                width: 71px;
+            }
+
+        .layer_info {
+            position: absolute;
+            bottom: 2px;
+            width: 100%;
+            height: 18px;
+            text-align: center;
+        }
+
+        .layer_title {
+            color: orangered;
+            line-height: 18px;
+            font-family: 'SimHei';
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #homeButton {
+            position: absolute;
+            top: 95px;
+            left: 20px;
+            z-index: 10;
+        }
+
+        #locateButton {
+            position: absolute;
+            top: 135px;
+            left: 20px;
+            z-index: 10;
+        }
+
+        #toolBar {
+            position: absolute;
+            width: 380px;
+            height: 50px;
+            z-index: 10;
+            left: 0;
+            right: 0;
+            top: 10px;
+            margin: auto;
+        }
+
+        .toolbar {
+            width: 70px;
+            height: 30px;
+            margin-left: 1px;
+            margin-right: 1px;
+            font-weight: bold;
+            font-family: 'Microsoft YaHei';
+            font-size: 13px;
+            color: black;
+            background-color: gray;
+            outline: none;
+            border: 1px solid black;
+        }
+
+            .toolbar:hover {
+                background-color: orange;
+            }
+    </style>
+
+    <script type="text/javascript">
+        var dojoConfig = {
+            isDebug: true,
+            parserOnLoad: true,
+            async: true,
+            packages: [{
+                "name": "js",
+                "location": location.pathname.replace(/\/[^/]+$/, "") + "/js"
+            }]
+        };
+    </script>
+    <script type="text/javascript" src="js/jquery.js"></script>
+    <script type="text/javascript" src="http://localhost/arcgis_js_api/library/3.23/3.23/init.js">
+    </script>
+    <script type="text/javascript">
+        var myMap;
+        var flag_extent = false;
+        var mapExtent;
+        var initalExtent;   //记录初始范围
+        function LoadLayer(map_type, layer_type, layer_id) {
+            $('#my_map').empty();
+            $('.map_layer').css({ "border-color": "black", "opacity": "0.8" });
+            $('#' + layer_id).css({ "border-color": "red", "opacity": "1" });
+            require(["esri/map", "js/mapLayers", "esri//geometry/Point", "esri/dijit/OverviewMap",
+            "esri/dijit/Scalebar", "esri/dijit/HomeButton", "esri/dijit/LocateButton", "esri/toolbars/navigation",
+            "dojo/query", "dojo/parser", "dojo/on", "dojo/domReady!"], function (map, mapLayers, Point, OverviewMap, Scalebar,
+             homeButton, locateButton, Navigation, query, parser, on) {
+                parser.parse();
+
+                var mapOver = {};
+                if (!flag_extent) {
+                    mapOver = {
+                        center: [141, 45],
+                        zoom: 4,
+                    };
+                }
+                mapOver['logo'] = false;
+                myMap = new map("my_map", mapOver);
+
+                if (flag_extent) {
+                    myMap.setExtent(mapExtent);
+                }
+                bdlayer = new mapLayers(map_type, layer_type);
+                myMap.addLayer(bdlayer);
+                if (!flag_extent) {
+                    initalExtent = myMap.extent;
+                    mapExtent = initalExtent;
+                }
+                flag_extent = true;
+
+                //创建地图操作对象
+                var navToolbar = new Navigation(myMap);
+                //给按钮添加绑定事件
+                query("button").on("click", function (event) {
+                    //获得按钮的文本信息
+                    var value = this.innerHTML;
+                    switch (value) {
+                        case "平移":
+                            navToolbar.activate(Navigation.PAN);
+                            break;
+                        case "拉框缩小":
+                            navToolbar.activate(Navigation.ZOOM_OUT);
+                            break;
+                        case "拉框放大":
+                            navToolbar.activate(Navigation.ZOOM_IN);
+                            break;
+                        case "全图":
+                            navToolbar.zoomToFullExtent();
+                            break;
+                        case "取消":
+                            //默认是关闭工具栏操作
+                            navToolbar.deactivate();
+                            break;
+                    };
+                });
+
+                //鹰眼图
+                var over = {
+                    map: myMap,
+                    attachTo: "bottom-right",
+                    visible: true,
+                    expandFactor: 2,
+                    width: 200,
+                    height: 120,
+                    baseLayer: new mapLayers(map_type, layer_type),
+                    maximizeButton: true,
+                };
+                var MapViewer = new esri.dijit.OverviewMap(over, dojo.byId("OverView"));
+                MapViewer.startup();
+
+                //地图比例尺
+                var scalebar = new esri.dijit.Scalebar(
+                    {
+                        map: myMap,
+                        attachTo: "bottom-left",
+                        scalebarUnit: "metric",
+                    }, dojo.byId("scaleBar"));
+
+                //返回到地图的默认起始范围
+                var homeButton = new esri.dijit.HomeButton({
+                    map: myMap,
+                    visible: true
+                }, "homeButton");
+                homeButton.startup();
+
+                //定位
+                var locateButton = new esri.dijit.LocateButton({
+                    map: myMap,
+                }, "locateButton");
+                locateButton.startup();
+
+                myMap.on("extent-change", function (evt) {
+                    mapExtent = evt.extent;
+                });
+                myMap.on("mouse-move", function (e) {
+                    console.log(e.mapPoint.long);
+                })
+                homeButton.on("home", function (evt) {
+                    myMap.setExtent(initalExtent);
+                })
+            });
+        };
+        LoadLayer('BaiDu', 'vector', "layer1");
+    </script>
+    <meta charset="utf-8" />
+</head>
+<body class="tundra">
+    <div id="my_map"></div>
+    <div id="map_layers">
+        <div id="layer1" class="map_layer" onmousedown="LoadLayer('BaiDu','vector',this.id);" style="background-image: url('image/vector.png');border-color:red;">
+            <div class="layer_info">
+                <span class="layer_title">百度地图</span>
+            </div>
+        </div>
+        <div id="layer2" class="map_layer" onmousedown="LoadLayer('BaiDu','image',this.id);" style="background-image: url('image/image.png')">
+            <div class="layer_info">
+                <span class="layer_title">百度地图</span>
+            </div>
+        </div>
+        <div id="layer3" class="map_layer" onmousedown="LoadLayer('GaoDe','vector',this.id);" style="background-image: url('image/vector.png')">
+            <div class="layer_info">
+                <span class="layer_title">高德地图</span>
+            </div>
+        </div>
+        <div id="layer4" class="map_layer" onmousedown="LoadLayer('GaoDe','image',this.id);" style="background-image: url('image/image.png')">
+            <div class="layer_info">
+                <span class="layer_title">高德地图</span>
+            </div>
+        </div>
+        <div id="layer5" class="map_layer" onmousedown="LoadLayer('TianDiTu','vector',this.id);" style="background-image: url('image/vector.png')">
+            <div class="layer_info">
+                <span class="layer_title">天地图</span>
+            </div>
+        </div>
+        <div id="layer6" class="map_layer" onmousedown="LoadLayer('TianDiTu','image',this.id);" style="background-image: url('image/image.png')">
+            <div class="layer_info">
+                <span class="layer_title">天地图</span>
+            </div>
+        </div>
+        <div id="layer7" class="map_layer" onmousedown="LoadLayer('Google','vector',this.id);" style="background-image: url('image/GoogleMap.png')">
+            <div class="layer_info">
+                <span class="layer_title">谷歌地图</span>
+            </div>
+        </div>
+        <div id="layer8" class="map_layer" onmousedown="LoadLayer('Google','image',this.id);" style="background-image: url('image/GoogleImage.png')">
+            <div class="layer_info">
+                <span class="layer_title">谷歌影像</span>
+            </div>
+        </div>
+    </div>
+    <div id="homeButton"></div>
+    <div id="locateButton"></div>
+    <div id="toolBar">
+        <button class="toolbar">拉框放大</button>
+        <button class="toolbar">拉框缩小</button>
+        <button class="toolbar">平移</button>
+        <button class="toolbar">全图</button>
+        <button class="toolbar">取消</button>
+    </div>
+</body>
+</html>
