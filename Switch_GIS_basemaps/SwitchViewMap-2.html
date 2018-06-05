@@ -1,8 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>实现底图的切换</title>
+    <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css"
+        rel="stylesheet" type="text/css" />
     <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css"
         rel="stylesheet" type="text/css" />
     <link href="http://localhost/arcgis_js_api/library/3.23/3.23/dijit/themes/tundra/tundra.css"
@@ -55,7 +57,7 @@
             opacity: 0.8;
         }
 
-         #locateButton {
+        #locateButton {
             position: absolute;
             top: 135px;
             left: 20px;
@@ -63,22 +65,31 @@
         }
     </style>
     <script type="text/javascript">
-        var MyMap;
-        var control = false;
-        var mapExtent;
-        function LoadBaseMap(divId, mapUrl) {
-            var MyTiledMapServiceLayer;
-            $('#MyMapDiv').empty();
+    var control = false;
+    var MyMap;
+    var mapExtent;
+        
+    function LoadBaseMap(divId, mapUrl) {
+        $('#MyMapDiv').empty();
+        require(["esri/map","dojo/ready","dojo/on",
+            "esri/dijit/OverviewMap", "esri/dijit/Scalebar","esri/dijit/LocateButton"],
+            function(map,ready,on,OverviewMap,Scalebar,LocateButton){
 
-            dojo.require("esri.map");
-            dojo.addOnLoad(function () {
-                MyMap = new esri.Map("MyMapDiv",{ });
-                MyTiledMapServiceLayer = new esri.layers.ArcGISTiledMapServiceLayer(mapUrl);
-                MyMap.addLayer(MyTiledMapServiceLayer,0);
+        MyMap = new esri.Map("MyMapDiv",{
             });
-            dojo.require("esri.dijit.OverviewMap");
-            dojo.addOnLoad(function OverviewMap() {
-                var over = {
+        if(control)
+        {
+            MyMap.setExtent(mapExtent);
+        }
+        control = true;
+        MyTiledMapServiceLayer = new esri.layers.ArcGISTiledMapServiceLayer(mapUrl);
+        MyMap.addLayer(MyTiledMapServiceLayer);
+
+        MyMap.on("extent-change", function(event){
+            mapExtent = event.extent;
+        });
+
+        var over = {
                     map: MyMap,
                     attachTo: "top-right",
                     visible: true,
@@ -86,30 +97,29 @@
                     expandFactor: 2,
                     width: 200,
                     height: 112,
-                    //baseLayer: MyTiledMapServiceLayer,
+                    baseLayer: MyTiledMapServiceLayer,
                 };
-                var MapViewer = new esri.dijit.OverviewMap(over, dojo.byId("OverViewDiv"));
-                MapViewer.startup();
-            });
+        var MapViewer = new esri.dijit.OverviewMap(over, dojo.byId("OverViewDiv"));
+            MapViewer.startup();
 
-            dojo.require("esri.dijit.Scalebar");
-            dojo.addOnLoad(function Scalebar() {
-                var scalebar = new esri.dijit.Scalebar(
+        var scalebar = new esri.dijit.Scalebar(
                     {
                         map: MyMap,
                         attachTo: "bottom-left",
                         scalebarUnit: "metric",
 
                     }, dojo.byId("scaleBarDiv"))
-            });
 
-            $('.BaseMapDivClass').css({ "border-color": "black", "opacity": "0.8" });
-            var id = "";
-            id = '#' + divId;
-            $(id).css({ "border-color": "red", "opacity": "1" });
-        };
-        LoadBaseMap('FirstBaseMapDiv',
-            'http://services.arcgisonline.com/ArcGIS/rest/services/ESRI_StreetMap_World_2D/MapServer');
+         var locateButton = new esri.dijit.LocateButton({
+                    map: MyMap,
+                }, "locateButton");
+                locateButton.startup();
+
+        });
+    }
+    LoadBaseMap('FirstBaseMapDiv','http://services.arcgisonline.com/ArcGIS/rest/services/ESRI_StreetMap_World_2D/MapServer');
+          
+
     </script>
     <meta charset="utf-8" />
 </head>
@@ -127,5 +137,6 @@
             onmousedown="LoadBaseMap('ThridBaseMapDiv','http://services.arcgisonline.com/ArcGIS/rest/services/NGS_Topo_US_2D/MapServer');">
         </div>
     </div>
+    <div id="locateButton"></div>
 </body>
 </html>
