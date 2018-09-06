@@ -1,0 +1,12 @@
+加载本地json文件，调试出现 Cross origin requests are only supported for protocol schemes:
+ http, data, chrome, chrome-extension, https.的错误。
+由于EastChinaSeaADIZ.html该网页里面存在用ajax加载本地json文件，
+在编译器中打开不存在问题，但是直接打开会出现错误。可在Google Chrome应用程序目标位置中添加
+  chrome.exe --allow-file-access-from-files  
+! 注意中间空格（chrome.exe  --allow-file-access-from-files）
+这样问题可以解决，谢谢！
+
+请查看EastChinaSeaADIZ.html完善后的网页，保证能直接打开网页。
+
+注意：几何服务中的Url，不同电脑不一样，请更改，尤其是端口号。
+
