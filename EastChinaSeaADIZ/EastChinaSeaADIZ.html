@@ -6,7 +6,8 @@
     <link href="http://localhost/arcgis_js_api/library/3.23/3.23/esri/css/esri.css" rel="stylesheet" type="text/css" />
     <link href="http://localhost/arcgis_js_api/library/3.23/3.23/dijit/themes/tundra/tundra.css" rel="stylesheet" type="text/css" />
     <script src="js/jquery.js" type="text/javascript"></script>
-    <script type="text/javascript">var dojoConfig = { parseOnLoad: true};</script>
+    <script src="js/data.js" type="text/javascript"></script>
+    <script type="text/javascript">var dojoConfig = { parseOnLoad: true };</script>
     <script src="http://localhost/arcgis_js_api/library/3.23/3.23/init.js" type="text/javascript"></script>
     <style type="text/css">
         html, body, #map {
@@ -31,8 +32,6 @@
             z-index: 20;
             margin: auto;
             transition: color 0.8s;
-            /*background-color: orange;*/
-            /*line-height: 50px;*/
         }
 
             #title:hover {
@@ -75,7 +74,7 @@
                 font-size: 17px;
             }
 
-        #flights {
+        #operators {
             position: absolute;
             width: auto;
             height: auto;
@@ -85,7 +84,7 @@
             margin: auto;
         }
 
-        .flight {
+        .operator {
             width: 70px;
             height: 30px;
             display: block;
@@ -99,7 +98,7 @@
             margin-bottom: 2px;
         }
 
-            .flight:hover {
+            .operator:hover {
                 font-weight: bold;
                 background-color: lightgrey;
                 color: black;
@@ -110,18 +109,16 @@
         dojo.require("esri.dijit.HomeButton");
 
         var myMap;
-        var defendPictureSymbol = null;
-        var pictureSymbol;
-        var pictureSymbol1;
-        var pictureSymbol2;
-        var flightLayer;
-        var areaLayer;
         var areaPolygon;
-        var relationParams;
-        var GeometryServices;
-        var flightInfo;
-        var interval;
-        var selectId = 0;
+        var areaLayer;
+        var flightLayers = [];
+        var pictureSymbols = [];
+        var temporarySymbols = [];
+        var defendPictureSymbol = null;
+        var intervals = [];
+        var flight1Points = [];
+        var flight2Points = [];
+        var indexs = [];
         var multiPoints = [];
         var controlInital = true;
         var controlTurn = true;
@@ -132,13 +129,14 @@
         var deltaY;
         var pictureWidth;
         var pictureHeight;
+        var controlStop = true;
 
         function Init() {
             var startExent = esri.geometry.Extent({
                 "xmin": 102.4956917313,
-                "ymin": 21.8934964327,
+                "ymin": 19.8934964327,
                 "xmax": 141.3036380000,
-                "ymax": 37.9910810000,
+                "ymax": 36.9910810000,
                 "spatialReference": { "wkid": 4326 }
             });
             myMap = new esri.Map("map", {
@@ -151,14 +149,39 @@
             areaLayer = new esri.layers.GraphicsLayer();
             myMap.addLayer(areaLayer);
 
-            flightLayer = new esri.layers.GraphicsLayer();      //航班飞行图层
-            flightLayer.setVisibility(true);
-            flightLayer.isVisibleAtScale = false;
-            myMap.addLayer(flightLayer);
+            for (var i = 0; i < 3; i++) {
+                flightLayers[i] = new esri.layers.GraphicsLayer();
+                myMap.addLayer(flightLayers[i]);
+            }
+
+            var imagesUrl = [["image/airliner1.png", "image/airliner3.png"],
+                ["image/airliner2.png", "image/airliner3.png"],
+                ["image/F_fighter1.png", "image/F_fighter2.png"]];
+            for (var i = 0; i < imagesUrl.length; i++) {
+                var pictureWidth1 = 20;
+                var pictureHeight1 = 21;
+                if (i == 2) {
+                    pictureWidth1 = 20;
+                    pictureHeight1 = 15;
+                }
+                var symbolGroup = [];
+                for (var j = 0; j < 2; j++) {
+                    var pictureSymbol = new esri.symbol.PictureMarkerSymbol(imagesUrl[i][j], pictureWidth1, pictureHeight1);
+                    symbolGroup.push(pictureSymbol);
+                }
+                pictureSymbols.push(symbolGroup);
+            }
+
+            for (var i = 0; i < 3; i++) {
+                temporarySymbols[i] = new esri.symbol.PictureMarkerSymbol(pictureSymbols[i][0].toJson());
+            }
+
+            defendPictureSymbol = new esri.symbol.PictureMarkerSymbol("image/J_fighter.png", 20, 15);
 
             relationParams = new esri.tasks.RelationParameters();
             relationParams.relation = esri.tasks.RelationParameters.SPATIAL_REL_INTERSECTION;
 
+            //几何服务
             GeometryServices = new esri.tasks.GeometryService("https://localhost:6443/arcgis/rest/services/Utilities/Geometry/GeometryServer");
 
             //初始范围按钮
@@ -185,26 +208,24 @@
                 };
             });
 
-            dojo.query(".flight").connect("click", function (event) {
+            dojo.query(".operator").connect("click", function (event) {
                 var value = this.innerText;
                 switch (value) {
-                    case "航线1":
-                        Cancel();
-                        InitFlightSymbol(1);
-                        InitFlightParams(1);
-                        break
-                    case "航线2":
-                        Cancel();
-                        InitFlightSymbol(2);
-                        InitFlightParams(2);
-                        break;
-                    case "航线3":
-                        Cancel();
-                        InitFlightSymbol(3);
-                        InitFlightParams(3);
+                    case "运行":
+                        if (controlStop) {
+                            Cancel();
+                            Flight1();
+                            Flight2();
+                            Flight3();
+                        }
+                        else {
+                            intervals[0] = setInterval("DrawFlight1()", 150);
+                            intervals[1] = setInterval("DrawFlight2()", 200);
+                            DrawMoveMultiPath();
+                        }
                         break;
                     case "停止":
-                        StopFlight();
+                        Stop();
                         break;
                     case "取消":
                         Cancel();
@@ -212,15 +233,10 @@
                 }
             })
 
-            dojo.connect(myMap, "mouse-down", function (evt) {
-                console.log(evt);
-            })
-
             dojo.connect(myMap, 'onLoad', function (theMap) {
                 dojo.connect(myMap, 'resize', MapResize);
                 ReadAreaJSONdata();
                 LoadArea();
-                GetFlightInfo();
             });
         }
 
@@ -232,19 +248,8 @@
             }, 500);
         }
 
-        function GetFlightInfo() {
-            $.ajaxSettings.async = false;
-            $.ajaxSettings.cache = false;
-            //读取航线信息
-            $.getJSON("js/flight.json", function (flightData) {
-                flightInfo = flightData;
-            });
-            $.ajaxSettings.cache = true;
-            $.ajaxSettings.async = true;
-        }
-
         function ReadAreaJSONdata() {
-            var pointCollection = [];
+            /*var pointCollection = [];
             //取消ajax方法的异步请求
             $.ajaxSettings.async = false;
             //读取识别区点的JSON文件
@@ -257,6 +262,15 @@
                 });
             });
             $.ajaxSettings.async = true;
+            return pointCollection;*/
+
+            var pointCollection = [];
+            dojo.forEach(AreaData, function (element, index) {
+                var pointCoord = [];
+                pointCoord.push(Number(element.longitude));
+                pointCoord.push(Number(element.latitude));
+                pointCollection.push(pointCoord);
+            });
             return pointCollection;
         }
 
@@ -271,6 +285,7 @@
             var areaGraphic = new esri.Graphic(areaPolygon, areaPolygonSymbol);
             areaLayer.add(areaGraphic);
 
+            //添加识别区名称
             var textSymbol = new esri.symbol.TextSymbol("东海防空识别区");
             textSymbol.setFont(new esri.symbol.Font("16pt", esri.symbol.Font.STYLE_ITALIC,
                 esri.symbol.Font.VARIANT_NORMAL, esri.symbol.Font.WEIGHT_BOLD, "Courier"));
@@ -281,30 +296,123 @@
             areaLayer.add(textGraphic);
         }
 
-        function InitFlightSymbol(selectId) {
-            if (selectId == 3) {
-                pictureWidth = 20;
-                pictureHeight = 15;
-                pictureSymbol1 = new esri.symbol.PictureMarkerSymbol("image/F_fighter1.png", pictureWidth, pictureHeight);
-                pictureSymbol2 = new esri.symbol.PictureMarkerSymbol("image/F_fighter2.png", pictureWidth, pictureHeight);
-                defendPictureSymbol = new esri.symbol.PictureMarkerSymbol("image/J_fighter.png", pictureWidth, pictureHeight);
+        function Flight1() {
+            flight1Points = Flight1Data;
+            indexs[0] = 0;
+            var offsetX = -9.799418929515404;
+            var offsetY = -1.9928343242365034;
+            var angle = 348.6555492425136;
+
+            for (var i = 0; i < 2; i++) {
+                pictureSymbols[0][i].setAngle(angle);
+                pictureSymbols[0][i].setOffset(offsetX, offsetY);
             }
-            else {
-                pictureWidth = 20;
-                pictureHeight = 21;
-                if (selectId == 1) {
-                    pictureSymbol1 = new esri.symbol.PictureMarkerSymbol("image/airliner1.png", pictureWidth, pictureHeight);
-                }
-                else {
-                    pictureSymbol1 = new esri.symbol.PictureMarkerSymbol("image/airliner2.png", pictureWidth, pictureHeight);
-                }
-                pictureSymbol2 = new esri.symbol.PictureMarkerSymbol("image/airliner3.png", pictureWidth, pictureHeight);
-            }
-            pictureSymbol = new esri.symbol.PictureMarkerSymbol(pictureSymbol1.toJson());
+            temporarySymbols[0].setAngle(angle);
+            temporarySymbols[0].setOffset(offsetX, offsetY);
+            intervals[0] = setInterval("DrawFlight1()", 150);
         }
 
-        function InitFlightParams(selectId) {
-            var pointPath = flightInfo[selectId - 1].path;
+        function DrawFlight1() {
+            if (indexs[0] >= flight1Points.length) {
+                clearInterval(intervals[0]);
+            }
+            else {
+                flightLayers[0].clear();
+            }
+
+            var point = new esri.geometry.Point(flight1Points[indexs[0]].longitude, flight1Points[indexs[0]].latitude);
+            relationParams.geometries1 = [point];
+            relationParams.geometries2 = [areaPolygon];
+            GeometryServices.relation(relationParams, RelationResult1, Error);
+            if (indexs[0] + 1 < flight1Points.length) {
+                var point1 = new esri.geometry.Point(flight1Points[indexs[0] + 1].longitude, flight1Points[indexs[0] + 1].latitude);
+                relationParams.geometries1 = [point1];
+                relationParams.geometries2 = [areaPolygon];
+                GeometryServices.relation(relationParams, RelationResult1, Error);
+            }
+
+            var graphic = new esri.Graphic(point, temporarySymbols[0]);
+            flightLayers[0].add(graphic);
+            indexs[0]++;
+        }
+
+        function RelationResult1(relations) {
+            if (relations.length > 0) {
+                temporarySymbols[0] = new esri.symbol.PictureMarkerSymbol(pictureSymbols[0][1].toJson());
+
+            }
+            else {
+                temporarySymbols[0] = new esri.symbol.PictureMarkerSymbol(pictureSymbols[0][0].toJson());
+            }
+        }
+
+        function Flight2() {
+            flight2Points = Flight2Data;
+            indexs[1] = 0;
+            var offsetX = -9.73695875493631;
+            var offsetY = -2.2785157898660966;
+            var angle = 347.05427447736093;
+
+            for (var i = 0; i < 2; i++) {
+                pictureSymbols[1][i].setAngle(angle);
+                pictureSymbols[1][i].setOffset(offsetX, offsetY);
+            }
+            temporarySymbols[1].setAngle(angle);
+            temporarySymbols[1].setOffset(offsetX, offsetY);
+            intervals[1] = setInterval("DrawFlight2()", 200);
+        }
+
+        function DrawFlight2() {
+            if (indexs[1] >= flight2Points.length) {
+                clearInterval(intervals[1]);
+            }
+            else {
+                flightLayers[1].clear();
+            }
+
+            var point = new esri.geometry.Point(flight2Points[indexs[1]].longitude, flight2Points[indexs[1]].latitude);
+            relationParams.geometries1 = [point];
+            relationParams.geometries2 = [areaPolygon];
+            GeometryServices.relation(relationParams, RelationResult2, Error);
+            if (indexs[1] + 1 < flight2Points.length) {
+                var point1 = new esri.geometry.Point(flight2Points[indexs[1] + 1].longitude, flight2Points[indexs[1] + 1].latitude);
+                relationParams.geometries1 = [point1];
+                relationParams.geometries2 = [areaPolygon];
+                GeometryServices.relation(relationParams, RelationResult2, Error);
+                if (flight2Points[indexs[1] + 1].turn == 1) {
+                    var offsetX = 6.639030595168347;
+                    var offsetY = -7.478186461731121;
+                    var angle = 293.52754478807634;
+
+                    for (var i = 0; i < 2; i++) {
+                        pictureSymbols[1][i].setAngle(angle);
+                        pictureSymbols[1][i].setOffset(offsetX, offsetY);
+                    }
+                    temporarySymbols[1].setAngle(angle);
+                    temporarySymbols[1].setOffset(offsetX, offsetY);
+                }
+            }
+
+            var graphic = new esri.Graphic(point, temporarySymbols[1]);
+            flightLayers[1].add(graphic);
+            indexs[1]++;
+        }
+
+        function RelationResult2(relations) {
+            if (relations.length > 0) {
+                temporarySymbols[1] = new esri.symbol.PictureMarkerSymbol(pictureSymbols[1][1].toJson());
+
+            }
+            else {
+                temporarySymbols[1] = new esri.symbol.PictureMarkerSymbol(pictureSymbols[1][0].toJson());
+            }
+        }
+
+        function Flight3() {
+            pictureWidth = 20;
+            pictureHeight = 15;
+            var flight3Path = Flight3Data;
+            var pointPath = flight3Path.path;
             var count = pointPath.length;
             for (var i = 0; i < count; i++) {
                 var point = new esri.geometry.Point(pointPath[i][0], pointPath[i][1]);
@@ -313,6 +421,7 @@
             DrawMoveMultiPath();
         }
 
+        //DDA算法，获取XY方向上的增量
         function GetDeltaXY(start, end) {
             var delta = [];
             var absX = Math.abs(Number(start.x) - Number(end.x));
@@ -333,10 +442,11 @@
             return delta;
         }
 
+        //移动轨迹
         function DrawMoveMultiPath() {
-            if (interval) {
-                clearInterval(interval);
-                flightLayer.clear();
+            if (intervals[2]) {
+                clearInterval(intervals[2]);
+                flightLayers[2].clear();
             }
 
             if (controlInital) {
@@ -345,25 +455,26 @@
                 if (controlOffset) {
                     var offsetX = -pictureWidth * Math.cos(slope) * Math.sin(slope / Math.abs(slope) * Math.PI / 2) / 2;
                     var offsetY = -pictureWidth * Math.sin(Math.abs(slope)) / 2;
-                    pictureSymbol.setOffset(offsetX, offsetY);
-                    pictureSymbol1.setOffset(offsetX, offsetY);
-                    pictureSymbol2.setOffset(offsetX, offsetY);
+                    pictureSymbols[2][0].setOffset(offsetX, offsetY);
+                    pictureSymbols[2][1].setOffset(offsetX, offsetY);
+                    temporarySymbols[2].setOffset(offsetX, offsetY);
                 }
 
                 var angle = RadToDegree(slope);
-                pictureSymbol.setAngle(angle);
-                pictureSymbol1.setAngle(angle);
-                pictureSymbol2.setAngle(angle);
+                pictureSymbols[2][0].setAngle(angle);
+                pictureSymbols[2][1].setAngle(angle);
+                temporarySymbols[2].setAngle(angle);
+
                 if (defendPictureSymbol != null) {
                     defendPictureSymbol.setAngle(angle);
                 }
-                
+
                 JudgeSpatialRelation(multiPoints[0]);
                 if (controlTurn) {
-                    flightLayer.add(new esri.Graphic(multiPoints[0], pictureSymbol));
+                    flightLayers[2].add(new esri.Graphic(multiPoints[0], temporarySymbols[2]));
                 }
-                deltaX = GetDeltaXY(multiPoints[0], multiPoints[1])[0] / 5;
-                deltaY = GetDeltaXY(multiPoints[0], multiPoints[1])[1] / 5;
+                deltaX = GetDeltaXY(multiPoints[0], multiPoints[1])[0] / 10;
+                deltaY = GetDeltaXY(multiPoints[0], multiPoints[1])[1] / 10;
                 controlTurn = true;
                 controlInital = false;
             }
@@ -373,12 +484,12 @@
             //保证符号显示的一致性
             var point2 = new esri.geometry.Point(multiPoints[0].x + 2 * deltaX, multiPoints[0].y + 2 * deltaY);
             JudgeSpatialRelation(point2);
-            flightLayer.add(new esri.Graphic(point, pictureSymbol));
+            flightLayers[2].add(new esri.Graphic(point, temporarySymbols[2]));
 
-            if (pictureSymbol.url == pictureSymbol2.url) {
-                if (defendPictureSymbol != null) { 
-                    var point3 = new esri.geometry.Point(point.x - 4 * Math.abs(deltaX), point.y -  2 * Math.abs(deltaY));
-                    flightLayer.add(new esri.Graphic(point3, defendPictureSymbol));
+            if (temporarySymbols[2].url == pictureSymbols[2][1].url) {
+                if (defendPictureSymbol != null) {
+                    var point3 = new esri.geometry.Point(point.x - 4 * Math.abs(deltaX), point.y - 2 * Math.abs(deltaY));
+                    flightLayers[2].add(new esri.Graphic(point3, defendPictureSymbol));
                 }
             }
 
@@ -387,11 +498,11 @@
             if ((Math.abs(point.x - multiPoints[1].x) <= Math.abs(deltaX / 2.0) && Math.abs(point.y - multiPoints[1].y) < Math.abs(deltaY)) ||
                 (Math.abs(point.x - multiPoints[1].x) < Math.abs(deltaX) && Math.abs(point.y - multiPoints[1].y) <= Math.abs(deltaY / 2.0))) {
                 if (multiPoints.length == 2) {
-                    clearInterval(interval);
+                    clearInterval(intervals[2]);
                 }
                 else if (multiPoints.length > 2) {
                     multiPoints.shift();
-                    interval = setInterval("DrawMoveMultiPath()", 100);
+                    intervals[2] = setInterval("DrawMoveMultiPath()", 200);
                     controlTurn = false;
                     controlInital = true;
                 }
@@ -400,55 +511,23 @@
                 }
             }
             else {
-                interval = setInterval("DrawMoveMultiPath()", 100);
+                intervals[2] = setInterval("DrawMoveMultiPath()", 200);
             }
         }
 
         function JudgeSpatialRelation(geometry) {
             relationParams.geometries1 = [geometry];
             relationParams.geometries2 = [areaPolygon];
-            GeometryServices.relation(relationParams, RelationResult, Error);
+            GeometryServices.relation(relationParams, RelationResult3, Error);
         }
 
-        function RelationResult(relations) {
+        function RelationResult3(relations) {
             if (relations.length > 0) {
-                pictureSymbol = new esri.symbol.PictureMarkerSymbol(pictureSymbol2.toJson());
+                temporarySymbols[2] = new esri.symbol.PictureMarkerSymbol(pictureSymbols[2][1].toJson());
                 controlOffset = false;
             }
             else {
-                pictureSymbol = new esri.symbol.PictureMarkerSymbol(pictureSymbol1.toJson());
-            }
-        }
-
-        function Error(error) {
-            console.log(error);
-        }
-
-        function StopFlight() {
-            clearInterval(interval);
-        }
-
-        function Cancel() {
-            clearInterval(interval);
-            interval = null;
-            startPoint = null;
-            endPoint = null;
-            deltaX = null;
-            deltaY = null;
-            multiPoints = [];
-            controlInital = true;
-            controlTurn = true;
-            controlOffset = true;
-            pictureSymbol = null;
-            pictureSymbol1 = null;
-            pictureSymbol2 = null;
-            defendPictureSymbol = null;
-            ClearGraphics();
-        }
-
-        function ClearGraphics() {
-            if (flightLayer.graphics != null) {
-                flightLayer.clear();
+                temporarySymbols[2] = new esri.symbol.PictureMarkerSymbol(pictureSymbols[2][0].toJson());
             }
         }
 
@@ -459,6 +538,45 @@
             }
             else {
                 return 180 - degree;
+            }
+        }
+
+        function Error(error) {
+            console.log(error);
+        }
+
+        function Stop() {
+            for (var i = 0; i < 3; i++) {
+                if (intervals[i]) {
+                    clearInterval(intervals[i]);
+                }
+            }
+            controlStop = false;
+        }
+
+        function Cancel() {
+            Stop();
+
+            intervals = [];
+            flight1Points = [];
+            flight2Points = [];
+            indexs = [];
+            multiPoints = [];
+            controlInital = true;
+            controlTurn = true;
+            controlOffset = true;
+            startPoint = null;
+            endPoint = null;
+            deltaX = null;
+            deltaY = null;
+            pictureWidth = null;
+            pictureHeight = null;
+            controlStop = true;
+
+            for (var i = 0; i < 3; i++) {
+                if (flightLayers[i].graphics != null) {
+                    flightLayers[i].clear();
+                }
             }
         }
 
@@ -474,12 +592,10 @@
         <button id="streets" class="layer">街道图</button>
         <button id="topo" class="layer">地形图</button>
     </div>
-    <div id="flights">
-        <button id="flight1" class="flight" title="武汉-东京航线">航线1</button>
-        <button id="flight2" class="flight" title="广州-台北-首尔航线">航线2</button>
-        <button id="flight3" class="flight" title="美国F侦察机飞行航线">航线3</button>
-        <button id="stop" class="flight">停止</button>
-        <button id="cancel" class="flight">取消</button>
+    <div id="operators">
+        <button id="run" class="operator">运行</button>
+        <button id="stop" class="operator">停止</button>
+        <button id="cancel" class="operator">取消</button>
     </div>
     <div id="homeButton"></div>
 </body>
